@@ -9,7 +9,7 @@ add_action( 'init', 'openid_textdomain' ); // load textdomain
 
 // include internal stylesheet
 if (OPENID_ENABLE_CONSUMER) {
-    add_action( 'wp', 'openid_style');
+	add_action( 'wp', 'openid_style');
 }
 
 // parse request
@@ -325,12 +325,18 @@ function openid_create_new_user($identity_url, &$user_data) {
 		$username = openid_generate_new_username($user_data['nickname'], false);
 	}
 
+	// try using email address before resorting to URL
+	if (empty($username) && array_key_exists('user_email', $user_data)) {
+		$username = openid_generate_new_username($user_data['user_email'], false);
+	}
+
 	// finally, build username from OpenID URL
 	if (empty($username)) {
 		$username = openid_generate_new_username($identity_url);
 	}
 
 	$user_data['user_login'] = $username;
+	$user_data['display_name'] = $username;
 	$user_data['user_pass'] = substr( md5( uniqid( microtime() ) ), 0, 7);
 	$user_id = wp_insert_user( $user_data );
 
@@ -383,9 +389,9 @@ function openid_create_new_user($identity_url, &$user_data) {
  *   ID, user_url, user_nicename, display_name
  *
  * Multiple soures of data may be available and are attempted in the following order:
- *   - OpenID Attribute Exchange      !! not yet implemented
+ *   - OpenID Attribute Exchange	  !! not yet implemented
  * 	 - OpenID Simple Registration
- * 	 - hCard discovery                !! not yet implemented
+ * 	 - hCard discovery				!! not yet implemented
  * 	 - default to identity URL
  *
  * @param string $identity_url OpenID to get user data about
@@ -572,10 +578,10 @@ function is_url_openid( $url ) {
 /**
  * Clean HTTP request parameters for OpenID.
  *
- * Apache's rewrite module is often used to produce "pretty URLs" in WordPress.  
- * Other webservers, such as lighttpd, nginx, and Microsoft IIS each have ways 
- * (read: hacks) for simulating this kind of functionality. This function 
- * reverses the side-effects of these hacks so that the OpenID request 
+ * Apache's rewrite module is often used to produce "pretty URLs" in WordPress.
+ * Other webservers, such as lighttpd, nginx, and Microsoft IIS each have ways
+ * (read: hacks) for simulating this kind of functionality. This function
+ * reverses the side-effects of these hacks so that the OpenID request
  * variables are in the form that the OpenID library expects.
  */
 function openid_clean_request() {
@@ -594,13 +600,13 @@ function openid_clean_request() {
 				$clean[] = $v;
 			}
 		}
-		
+
 		$_SERVER['QUERY_STRING'] = implode('&', $clean);
 
 	} else if (isset($_SERVER['argc']) && $_SERVER['argc'] >= 1 && $_SERVER['argv'][0] == 'error=404') {
 
-		// handle lighttpd hack which uses a custom error-handler, passing 404 errors to WordPress.  
-		// This results in the QUERY_STRING not having the correct information, but fortunately we 
+		// handle lighttpd hack which uses a custom error-handler, passing 404 errors to WordPress.
+		// This results in the QUERY_STRING not having the correct information, but fortunately we
 		// can pull it out of REQUEST_URI
 
 		list($path, $query) = explode('?', $_SERVER['REQUEST_URI'], 2);
@@ -622,9 +628,7 @@ function openid_service_url($service, $scheme = null) {
 	if (!$wp_rewrite) $wp_rewrite = new WP_Rewrite();
 
 	if (!defined('OPENID_SSL') || !OPENID_SSL) $scheme = null;
-	$url = site_url('/', $scheme);
-
-    $url .= '?openid=' . $service;
+	$url = site_url('/?openid=' . $service, $scheme);
 
 	return $url;
 }
@@ -735,16 +739,16 @@ function openid_page($message, $title = '') {
  * @action: init
  **/
 function openid_js_setup() {
-	if (have_comments() || comments_open() || is_admin()) {
-		wp_enqueue_script('openid', plugin_dir_url(__FILE__) . 'f/openid.js', array('jquery'), OPENID_PLUGIN_REVISION);
+	if ( ( is_singular() && ( have_comments() || comments_open() ) ) || is_admin() ) {
+		wp_enqueue_script( 'openid', plugin_dir_url( __FILE__ ) . 'f/openid.js', array( 'jquery' ), OPENID_PLUGIN_REVISION );
 	}
 }
 
 
 /**
- * Include OpenID stylesheet.  
+ * Include OpenID stylesheet.
  *
- * "Intelligently" decides whether to enqueue or print the CSS file, based on whether * the 'wp_print_styles' 
+ * "Intelligently" decides whether to enqueue or print the CSS file, based on whether * the 'wp_print_styles'
  * action has been run.  (This logic taken from the core wp_admin_css function)
  **/
 function openid_style() {
@@ -847,5 +851,3 @@ function openid_debug($msg) {
 		openid_error($msg);
 	}
 }
-
-?>
